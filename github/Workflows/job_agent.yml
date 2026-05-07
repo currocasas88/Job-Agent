@@ -1,0 +1,46 @@
+name: Job Hunter Agent
+
+on:
+  schedule:
+    # Runs every Monday and Thursday at noon UTC
+    # Adjust or comment out to pause; use workflow_dispatch for manual runs
+    - cron: '0 12 * * 1,4'
+  workflow_dispatch:   # Always keep — allows manual trigger from GitHub UI
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Job Hunter Agent
+        env:
+          # All secrets set in GitHub repo → Settings → Secrets → Actions
+          RAPIDAPI_KEY:       ${{ secrets.RAPIDAPI_KEY }}
+          GEMINI_API_KEY:     ${{ secrets.GEMINI_API_KEY }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          GMAIL_ADDRESS:      ${{ secrets.GMAIL_ADDRESS }}
+        run: python main.py
+
+      # Saves output reports for 7 days — viewable in the Actions run summary
+      - name: Upload Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: job-digest-${{ github.run_number }}
+          path: |
+            raw_discovery.txt
+            scored_results.txt
+          retention-days: 7
